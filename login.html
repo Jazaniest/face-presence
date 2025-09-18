@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login - Absensi Wajah</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 font-sans">
+
+  <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+    <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Masuk ke Sistem Absensi</h1>
+
+    <label for="username" class="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+    <input id="username" autocomplete="username"
+      class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+
+    <label for="password" class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+    <input id="password" type="password" autocomplete="current-password"
+      class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+
+    <label for="role" class="block text-sm font-semibold text-gray-700 mb-1">Masuk sebagai</label>
+    <select id="role"
+      class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <option value="staff">Staff</option>
+      <option value="kepala_ruangan">Kepala Ruangan</option>
+      <option value="admin">Admin</option>
+    </select>
+
+    <button id="login-btn"
+      class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-blue-700 transition-colors">
+      Masuk
+    </button>
+
+    <div id="status" class="mt-4 text-center font-semibold text-sm"></div>
+  </div>
+
+<script>
+async function parseJwt(token) {
+    try {
+        const payload = token.split('.')[1];
+        const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+        return JSON.parse(decodeURIComponent(escape(decoded)));
+    } catch (e) {
+        return null;
+    }
+}
+
+document.getElementById('login-btn').addEventListener('click', async () => {
+    const statusDiv = document.getElementById('status');
+    statusDiv.textContent = 'Mengirim...';
+    statusDiv.className = 'mt-4 text-center font-semibold text-sm text-gray-600';
+
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const chosenRole = document.getElementById('role').value;
+
+    if (!username || !password) {
+        statusDiv.textContent = 'Silakan isi username dan password.';
+        statusDiv.className = 'mt-4 text-center font-semibold text-sm text-red-600';
+        return;
+    }
+
+    const body = new URLSearchParams();
+    body.append('username', username);
+    body.append('password', password);
+
+    try {
+        const res = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            statusDiv.textContent = data.detail || 'Login gagal.';
+            statusDiv.className = 'mt-4 text-center font-semibold text-sm text-red-600';
+            return;
+        }
+
+        const accessToken = data.access_token;
+        const payload = await parseJwt(accessToken);
+
+        if (!payload || !payload.role) {
+            statusDiv.textContent = 'Token tidak valid (role tidak ditemukan).';
+            statusDiv.className = 'mt-4 text-center font-semibold text-sm text-red-600';
+            return;
+        }
+
+        if (payload.role !== chosenRole) {
+            statusDiv.textContent = `Role token (${payload.role}) tidak sama dengan pilihan Anda (${chosenRole}).`;
+            statusDiv.className = 'mt-4 text-center font-semibold text-sm text-red-600';
+            return;
+        }
+
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('userRole', payload.role);
+        localStorage.setItem('userName', payload.sub || '');
+
+        statusDiv.textContent = 'Login berhasil. Mengarahkan...';
+        statusDiv.className = 'mt-4 text-center font-semibold text-sm text-green-600';
+
+        if (payload.role === 'staff') {
+            window.location.href = '/staff';
+        } else if (payload.role === 'kepala_ruangan') {
+            window.location.href = '/manager';
+        } else if (payload.role === 'admin') {
+            window.location.href = '/admin';
+        } else {
+            window.location.href = '/';
+        }
+    } catch (err) {
+        statusDiv.textContent = 'Gagal menghubungi server.';
+        statusDiv.className = 'mt-4 text-center font-semibold text-sm text-red-600';
+    }
+});
+</script>
+</body>
+</html>

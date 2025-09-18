@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Halaman Kepala Ruangan</title>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans p-6">
+
+  <!-- Header -->
+  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-6 mb-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">Halo, Kepala Ruangan</h1>
+    <p class="text-gray-600 text-sm">
+      Di sini Anda dapat mengelola jadwal staff bagian Anda dan melihat rekap absensi.
+    </p>
+    <div class="mt-4">
+      <button id="logout" 
+        class="px-4 py-2 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition">
+        Logout
+      </button>
+    </div>
+  </div>
+
+  <!-- Daftar Staff -->
+  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-6 mb-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-4">Daftar Staff</h2>
+    <div id="subs" class="flex flex-col gap-3">Memuat...</div>
+  </div>
+
+  <!-- Rekap Absensi -->
+  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-6 mb-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-4">Rekap Absensi Staff</h2>
+    <div class="flex flex-wrap gap-3 items-center mb-4">
+      <select id="select-sub" class="border rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-blue-500">
+        <option value="">Pilih Staff...</option>
+      </select>
+      <input type="month" id="month-picker" 
+        class="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" />
+      <button id="btn-view-att" 
+        class="px-4 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition">
+        Lihat Absensi
+      </button>
+    </div>
+    <div id="attendance-result" class="overflow-x-auto"></div>
+  </div>
+
+  <!-- Buat Jadwal -->
+  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-4">Buat Jadwal untuk Staff</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Pilih Staff</label>
+        <select id="schedule-user" 
+          class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"></select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+        <input id="schedule-date" placeholder="2025-09-15" 
+          class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Jam Mulai</label>
+        <input id="schedule-start" placeholder="08:00" 
+          class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Jam Selesai</label>
+        <input id="schedule-end" placeholder="16:00" 
+          class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" />
+      </div>
+    </div>
+    <div class="mt-4">
+      <button id="btn-create-schedule" 
+        class="px-4 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition">
+        Buat Jadwal
+      </button>
+      <div id="schedule-status" class="text-sm text-gray-600 mt-2"></div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const token = localStorage.getItem('accessToken');
+      const role = localStorage.getItem('userRole');
+      if (!token || role !== 'kepala_ruangan') {
+          window.location.href = '/login';
+          return;
+      }
+      function authFetch(url, opts = {}) {
+          opts.headers = opts.headers || {};
+          opts.headers['Authorization'] = `Bearer ${token}`;
+          return fetch(url, opts);
+      }
+
+      const subsDiv = document.getElementById('subs');
+      const selectSub = document.getElementById('select-sub');
+      const scheduleUser = document.getElementById('schedule-user');
+      const monthPicker = document.getElementById('month-picker');
+      const attendanceResult = document.getElementById('attendance-result');
+
+      document.getElementById('logout').addEventListener('click', () => {
+          localStorage.removeItem('accessToken'); 
+          localStorage.removeItem('userRole'); 
+          localStorage.removeItem('userName');
+          window.location.href = '/login';
+      });
+
+      async function loadSubordinates() {
+          subsDiv.textContent = 'Memuat...';
+          try {
+              const res = await authFetch('/manager/subordinates');
+              if (!res.ok) {
+                  subsDiv.textContent = 'Gagal memuat daftar Staff.';
+                  return;
+              }
+              const list = await res.json();
+              subsDiv.innerHTML = '';
+              selectSub.innerHTML = '<option value="">Pilih Staff...</option>';
+              scheduleUser.innerHTML = '<option value="">Pilih Staff...</option>';
+              if (!list.length) {
+                  subsDiv.innerHTML = '<div class="text-sm text-gray-600">Tidak ada Staff terdaftar.</div>';
+                  return;
+              }
+              list.forEach(s => {
+                  const item = document.createElement('div');
+                  item.className = 'flex justify-between items-center p-3 rounded-lg bg-gray-50 border border-gray-200';
+                  item.innerHTML = `
+                      <div>
+                          <div class="font-semibold text-gray-800">${s.full_name} <span class="text-sm text-gray-500">(ID: ${s.id})</span></div>
+                          <div class="text-sm text-gray-600">username: ${s.user_name}</div>
+                      </div>
+                      <div class="flex gap-2">
+                          <button class="btn-view px-3 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition" data-id="${s.id}">Lihat Absensi</button>
+                          <button class="btn-schedule px-3 py-1 rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition" data-id="${s.id}">Buat Jadwal</button>
+                      </div>
+                  `;
+                  subsDiv.appendChild(item);
+
+                  const opt = document.createElement('option');
+                  opt.value = s.id;
+                  opt.textContent = `${s.full_name} (ID:${s.id})`;
+                  selectSub.appendChild(opt);
+
+                  const opt2 = opt.cloneNode(true);
+                  scheduleUser.appendChild(opt2);
+              });
+          } catch (err) {
+              subsDiv.textContent = 'Gagal memuat daftar Staff.';
+          }
+      }
+
+      subsDiv.addEventListener('click', async (e) => {
+          const btn = e.target.closest('.btn-view');
+          if (!btn) return;
+          const id = btn.dataset.id;
+          selectSub.value = id;
+          monthPicker.value = '';
+          await viewAttendanceFor(id);
+      });
+
+      document.getElementById('btn-view-att').addEventListener('click', async () => {
+          const id = selectSub.value;
+          if (!id) { alert('Pilih Staff terlebih dahulu.'); return; }
+          await viewAttendanceFor(id);
+      });
+
+      async function viewAttendanceFor(userId){
+          attendanceResult.innerHTML = 'Memuat...';
+          try {
+              const monthVal = monthPicker.value;
+              let url = `/manager/subordinates/${userId}/attendances`;
+              if (monthVal) {
+                  const [year, month] = monthVal.split('-');
+                  url += `?year=${year}&month=${month}`;
+              }
+              const res = await authFetch(url);
+              if (!res.ok) {
+                  attendanceResult.innerHTML = '<div class="text-sm text-gray-600">Gagal memuat absensi.</div>';
+                  return;
+              }
+              const recs = await res.json();
+              if (!recs.length) {
+                  attendanceResult.innerHTML = '<div class="text-sm text-gray-600">Tidak ada catatan absensi.</div>';
+                  return;
+              }
+              let html = `
+                  <table class="w-full border border-gray-200 text-sm">
+                    <thead class="bg-gray-100">
+                      <tr>
+                        <th class="p-2 border">Tanggal & Waktu</th>
+                        <th class="p-2 border">Latitude</th>
+                        <th class="p-2 border">Longitude</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+              `;
+              recs.forEach(r => {
+                  const d = new Date(r.timestamp);
+                  html += `
+                      <tr>
+                        <td class="p-2 border">${d.toLocaleString()}</td>
+                        <td class="p-2 border">${r.latitude}</td>
+                        <td class="p-2 border">${r.longitude}</td>
+                      </tr>
+                  `;
+              });
+              html += '</tbody></table>';
+              attendanceResult.innerHTML = html;
+          } catch (err) {
+              attendanceResult.innerHTML = '<div class="text-sm text-gray-600">Gagal memuat absensi.</div>';
+          }
+      }
+
+      document.getElementById('btn-create-schedule').addEventListener('click', async () => {
+          const uid = scheduleUser.value;
+          const date = document.getElementById('schedule-date').value;
+          const start = document.getElementById('schedule-start').value;
+          const end = document.getElementById('schedule-end').value;
+          const statusDiv = document.getElementById('schedule-status');
+          statusDiv.textContent = 'Mengirim...';
+          if (!uid || !date || !start || !end) {
+              statusDiv.textContent = 'Isi semua field terlebih dahulu.';
+              return;
+          }
+          try {
+              const body = new URLSearchParams();
+              body.append('user_id', uid);
+              body.append('shift_date', date);
+              body.append('start_time', start);
+              body.append('end_time', end);
+
+              const res = await authFetch('/manager/schedules', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                  body: body.toString()
+              });
+              const data = await res.json();
+              if (res.ok) {
+                  statusDiv.textContent = data.message || 'Jadwal berhasil dibuat.';
+              } else {
+                  statusDiv.textContent = data.detail || 'Gagal membuat jadwal.';
+              }
+          } catch (err) {
+              statusDiv.textContent = 'Gagal menghubungi server.';
+          }
+      });
+
+      loadSubordinates();
+    })();
+  </script>
+</body>
+</html>

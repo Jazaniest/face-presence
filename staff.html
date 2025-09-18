@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Halaman Staff - Absensi Wajah</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom status styles */
+    .status.success {
+      color: #10b981;
+      background-color: #d1fae5;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #10b981;
+    }
+    
+    .status.error {
+      color: #dc2626;
+      background-color: #fee2e2;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #dc2626;
+    }
+    
+    .status.processing {
+      color: #2563eb;
+      background-color: #dbeafe;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #2563eb;
+    }
+    
+    .apply-swap-btn {
+      background-color: #059669;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .apply-swap-btn:hover {
+      background-color: #047857;
+    }
+    
+    #schedules-list li {
+      background-color: #f9fafb;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .small {
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .attendance-type-btn {
+      transition: all 0.3s ease;
+    }
+    
+    .attendance-type-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans flex flex-col items-center p-6">
+  <!-- Header -->
+  <div class="bg-white w-full max-w-3xl rounded-xl shadow-lg p-6 mb-6">
+    <h1 class="text-2xl font-bold text-center text-gray-800 mb-4">
+      Selamat datang, <span id="user-name">user</span>
+    </h1>
+    <div class="flex justify-between items-center">
+      <div>
+        <div class="flex gap-3 mb-2">
+          <button id="btn-view-schedules" 
+            class="px-5 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition">
+            Tukar Jadwal
+          </button>
+          <button id="btn-attend" 
+            class="px-5 py-2 rounded-lg font-semibold bg-gray-600 text-white hover:bg-gray-700 transition">
+            Absensi
+          </button>
+        </div>
+        <div class="text-sm text-gray-600">
+          Role: <span id="user-role"></span>
+        </div>
+      </div>
+      <button id="logout-btn" 
+        class="px-5 py-2 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition">
+        Logout
+      </button>
+    </div>
+  </div>
+
+  <!-- Schedules Section -->
+  <div id="schedules-section" class="bg-white w-full max-w-3xl rounded-xl shadow-lg p-6 mb-6 hidden">
+    <h2 class="text-xl font-bold text-gray-800 mb-2">Daftar Jadwal Saya</h2>
+    <p class="text-sm text-gray-600 mb-4">
+      Klik tombol "Ajukan Tukar" pada jadwal yang ingin Anda tukar.
+    </p>
+    <ul id="schedules-list" class="space-y-3"></ul>
+
+    <h3 class="text-lg font-semibold text-gray-700 mt-6 mb-2">Form Ajukan Tukar (Manual)</h3>
+    <form id="swap-form" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">ID Jadwal Saya</label>
+        <input id="my-schedule-id" type="number" required 
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">ID User Rekan</label>
+        <input id="peer-id" type="number" required 
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">ID Jadwal Rekan</label>
+        <input id="peer-schedule-id" type="number" required 
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <button type="submit" 
+        class="w-full py-3 text-white font-semibold rounded-lg bg-green-600 hover:bg-green-700 transition">
+        Ajukan Permintaan Tukar
+      </button>
+    </form>
+    <div id="swap-status" class="mt-4 text-center font-semibold"></div>
+  </div>
+
+  <!-- Attendance Section -->
+  <div id="attendance-section" class="bg-white w-full max-w-3xl rounded-xl shadow-lg p-6 mb-6 hidden">
+    <div id="attendance-type-selection">
+      <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">Pilih Jenis Absensi</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <button id="btn-masuk" 
+          class="attendance-type-btn py-8 px-6 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg">
+          <div class="text-3xl mb-2">🕐</div>
+          Absen Masuk
+        </button>
+        <button id="btn-pulang" 
+          class="attendance-type-btn py-8 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-lg shadow-lg">
+          <div class="text-3xl mb-2">🕕</div>
+          Absen Pulang
+        </button>
+      </div>
+      <button id="btn-back-from-attendance" 
+        class="w-full mt-4 py-2 px-4 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition">
+        Kembali ke Menu Utama
+      </button>
+    </div>
+
+    <div id="requirements-check" class="hidden">
+      <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">
+        Verifikasi Persyaratan - <span id="attendance-type-title"></span>
+      </h2>
+      <div id="requirements-status" class="text-center mb-4">
+        <div class="status processing">Memeriksa persyaratan absensi...</div>
+      </div>
+      <div id="requirements-details" class="space-y-2 text-sm text-gray-600 mb-4"></div>
+      <button id="btn-back-to-type-selection" 
+        class="w-full py-2 px-4 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition">
+        Kembali ke Pilihan Jenis Absensi
+      </button>
+    </div>
+
+    <div id="face-verification" class="hidden">
+      <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">
+        Verifikasi Wajah - <span id="face-attendance-type-title"></span>
+      </h2>
+      
+      <div id="camera-container" 
+          class="border-4 border-gray-300 rounded-lg overflow-hidden bg-black aspect-[3/4] max-h-[400px] mx-auto mb-4">
+          <video id="video" autoplay playsinline class="w-full h-full object-cover transform -scale-x-100"></video>
+      </div>
+
+      <div id="face-verification-status" class="text-center mb-4">
+        <div class="status processing">Mempersiapkan kamera untuk verifikasi wajah...</div>
+      </div>
+
+      <button id="btn-cancel-face-verification" 
+        class="w-full py-2 px-4 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition">
+        Batalkan Verifikasi
+      </button>
+
+      <canvas id="canvas" class="hidden"></canvas>
+    </div>
+
+    <!-- Success Message -->
+    <div id="attendance-success" class="hidden text-center">
+      <h2 class="text-xl font-bold text-green-600 mb-4">Absensi Berhasil!</h2>
+      <div id="success-details" class="mb-4"></div>
+      <button id="btn-back-to-main-from-success" 
+        class="py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold">
+        Kembali ke Menu Utama
+      </button>
+    </div>
+  </div>
+
+<script>
+(function() {
+    const token = localStorage.getItem('accessToken');
+    const role = localStorage.getItem('userRole');
+    const userName = localStorage.getItem('userName') || '';
+    
+    if (!token || role !== 'staff') {
+        window.location.href = '/login';
+        return;
+    }
+
+    document.getElementById('user-role').textContent = role;
+    document.getElementById('user-name').textContent = userName || 'Staff';
+
+    // UI refs
+    const btnViewSchedules = document.getElementById('btn-view-schedules');
+    const btnAttend = document.getElementById('btn-attend');
+    const logoutBtn = document.getElementById('logout-btn');
+    const schedulesSection = document.getElementById('schedules-section');
+    const attendanceSection = document.getElementById('attendance-section');
+    
+    // Schedule refs
+    const schedulesList = document.getElementById('schedules-list');
+    const swapForm = document.getElementById('swap-form');
+    const swapStatus = document.getElementById('swap-status');
+
+    // Attendance refs
+    const attendanceTypeSelection = document.getElementById('attendance-type-selection');
+    const requirementsCheck = document.getElementById('requirements-check');
+    const faceVerification = document.getElementById('face-verification');
+    const attendanceSuccess = document.getElementById('attendance-success');
+    
+    const btnMasuk = document.getElementById('btn-masuk');
+    const btnPulang = document.getElementById('btn-pulang');
+    const btnBackFromAttendance = document.getElementById('btn-back-from-attendance');
+    const btnBackToTypeSelection = document.getElementById('btn-back-to-type-selection');
+    const btnCancelFaceVerification = document.getElementById('btn-cancel-face-verification');
+    const btnBackToMainFromSuccess = document.getElementById('btn-back-to-main-from-success');
+
+    // Camera refs
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+
+    let currentAttendanceType = '';
+    let currentLatitude = null;
+    let currentLongitude = null;
+    let videoStream = null;
+
+    // Helper function
+    function authFetch(url, opts = {}) {
+        opts.headers = opts.headers || {};
+        opts.headers['Authorization'] = `Bearer ${token}`;
+        return fetch(url, opts);
+    }
+
+    async function getCurrentUser() {
+        const res = await authFetch('/users/me');
+        if (!res.ok) throw new Error('Tidak bisa mendapatkan user info');
+        return res.json();
+    }
+
+    // Schedule functions
+    async function loadSchedules() {
+        schedulesList.innerHTML = '<li>Memuat...</li>';
+        try {
+            const me = await getCurrentUser();
+            const res = await authFetch(`/schedules/user/${me.id}`);
+            if (!res.ok) {
+                const e = await res.json();
+                schedulesList.innerHTML = `<li class="error">Error: ${e.detail || 'Gagal memuat jadwal'}</li>`;
+                return;
+            }
+            const schedules = await res.json();
+            if (!schedules.length) {
+                schedulesList.innerHTML = '<li>Tidak ada jadwal.</li>';
+                return;
+            }
+            schedulesList.innerHTML = '';
+            schedules.forEach(s => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div><strong>ID:</strong> ${s.id} &nbsp; <strong>Tanggal:</strong> ${s.shift_date}</div>
+                    <div class="small"><strong>Jam:</strong> ${s.start_time} - ${s.end_time}</div>
+                    <div style="margin-top:8px;">
+                        <button data-id="${s.id}" class="apply-swap-btn">Ajukan Tukar</button>
+                    </div>
+                `;
+                schedulesList.appendChild(li);
+            });
+        } catch (err) {
+            schedulesList.innerHTML = `<li class="error">Gagal memuat jadwal: ${err.message}</li>`;
+            console.error('Error loading schedules:', err);
+        }
+    }
+
+    // Navigation functions
+    function showScheduleSection() {
+        hideAllSections();
+        schedulesSection.classList.remove('hidden');
+        loadSchedules();
+    }
+
+    function showAttendanceSection() {
+        hideAllSections();
+        attendanceSection.classList.remove('hidden');
+        showAttendanceTypeSelection();
+    }
+
+    function hideAllSections() {
+        schedulesSection.classList.add('hidden');
+        attendanceSection.classList.add('hidden');
+    }
+
+    function showAttendanceTypeSelection() {
+        attendanceTypeSelection.classList.remove('hidden');
+        requirementsCheck.classList.add('hidden');
+        faceVerification.classList.add('hidden');
+        attendanceSuccess.classList.add('hidden');
+        stopVideoStream();
+    }
+
+    function showRequirementsCheck() {
+        attendanceTypeSelection.classList.add('hidden');
+        requirementsCheck.classList.remove('hidden');
+        faceVerification.classList.add('hidden');
+        attendanceSuccess.classList.add('hidden');
+    }
+
+    function showFaceVerification() {
+        attendanceTypeSelection.classList.add('hidden');
+        requirementsCheck.classList.add('hidden');
+        faceVerification.classList.remove('hidden');
+        attendanceSuccess.classList.add('hidden');
+    }
+
+    function showAttendanceSuccess() {
+        attendanceTypeSelection.classList.add('hidden');
+        requirementsCheck.classList.add('hidden');
+        faceVerification.classList.add('hidden');
+        attendanceSuccess.classList.remove('hidden');
+        stopVideoStream();
+    }
+
+    function stopVideoStream() {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+            video.srcObject = null;
+        }
+    }
+
+    // Attendance functions
+    async function checkRequirements(attendanceType) {
+        currentAttendanceType = attendanceType;
+        document.getElementById('attendance-type-title').textContent = 
+            attendanceType === 'masuk' ? 'Absen Masuk' : 'Absen Pulang';
+        
+        showRequirementsCheck();
+        
+        const statusDiv = document.getElementById('requirements-status');
+        const detailsDiv = document.getElementById('requirements-details');
+        
+        statusDiv.innerHTML = '<div class="status processing">Mendapatkan lokasi...</div>';
+        detailsDiv.innerHTML = '';
+
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            currentLatitude = position.coords.latitude;
+            currentLongitude = position.coords.longitude;
+            
+            statusDiv.innerHTML = '<div class="status processing">Memeriksa persyaratan absensi...</div>';
+            
+            try {
+                const formData = new FormData();
+                formData.append('attendance_type', attendanceType);
+                formData.append('latitude', currentLatitude.toString());
+                formData.append('longitude', currentLongitude.toString());
+
+                const res = await authFetch('/attendance/check-requirements', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await res.json();
+                
+                if (res.ok) {
+                    statusDiv.innerHTML = '<div class="status success">✓ Semua persyaratan terpenuhi</div>';
+                    detailsDiv.innerHTML = `
+                        <div>✓ Jadwal kerja: ${result.schedule.start_time} - ${result.schedule.end_time}</div>
+                        <div>✓ Lokasi: Di dalam jangkauan kantor</div>
+                        <div>✓ Waktu: Sesuai dengan jadwal ${attendanceType}</div>
+                        <div class="mt-3 text-center">
+                            <button id="btn-proceed-to-face" class="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-semibold">
+                                Lanjut ke Verifikasi Wajah
+                            </button>
+                        </div>
+                    `;
+                    
+                    document.getElementById('btn-proceed-to-face').addEventListener('click', () => {
+                        startFaceVerification();
+                    });
+                } else {
+                    statusDiv.innerHTML = `<div class="status error">✗ ${result.detail}</div>`;
+                    detailsDiv.innerHTML = '<div class="text-red-600">Silakan perbaiki masalah di atas dan coba lagi.</div>';
+                }
+            } catch (err) {
+                console.error('Requirements check error:', err);
+                statusDiv.innerHTML = '<div class="status error">Error: Tidak dapat terhubung ke server</div>';
+            }
+        }, (error) => {
+            console.error('Geolocation error:', error);
+            statusDiv.innerHTML = '<div class="status error">Error: Tidak dapat mengakses lokasi</div>';
+            detailsDiv.innerHTML = '<div class="text-red-600">Pastikan Anda memberikan izin akses lokasi pada browser.</div>';
+        }, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+        });
+    }
+
+    async function startFaceVerification() {
+        document.getElementById('face-attendance-type-title').textContent = 
+            currentAttendanceType === 'masuk' ? 'Absen Masuk' : 'Absen Pulang';
+        
+        showFaceVerification();
+        
+        const statusDiv = document.getElementById('face-verification-status');
+        statusDiv.innerHTML = '<div class="status processing">Mempersiapkan kamera...</div>';
+        
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({
+                video: { aspectRatio: 3/4, facingMode: "user" }
+            });
+            video.srcObject = videoStream;
+            
+            statusDiv.innerHTML = '<div class="status processing">Kamera siap. Melakukan deteksi wajah...</div>';
+            
+            // Simulate face detection process
+            setTimeout(() => {
+                captureAndSend();
+            }, 2000);
+            
+        } catch (err) {
+            console.error('Camera setup error:', err);
+            statusDiv.innerHTML = '<div class="status error">Error: Tidak dapat mengakses kamera</div>';
+        }
+    }
+
+    async function captureAndSend() {
+        const statusDiv = document.getElementById('face-verification-status');
+        statusDiv.innerHTML = '<div class="status processing">Mengambil foto dan mengirim data...</div>';
+        
+        try {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Flip horizontal untuk mirror effect
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    statusDiv.innerHTML = '<div class="status error">Error: Gagal mengambil foto</div>';
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', blob, 'capture.jpg');
+                formData.append('attendance_type', currentAttendanceType);
+                formData.append('latitude', currentLatitude.toString());
+                formData.append('longitude', currentLongitude.toString());
+
+                try {
+                    const res = await authFetch('/attendance/check', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const json = await res.json();
+                    if (res.ok) {
+                        document.getElementById('success-details').innerHTML = `
+                            <div class="text-lg mb-2">Selamat datang, ${json.user_name}!</div>
+                            <div class="text-sm text-gray-600">Absensi ${currentAttendanceType} telah dicatat pada ${new Date().toLocaleString('id-ID')}</div>
+                        `;
+                        showAttendanceSuccess();
+                    } else {
+                        statusDiv.innerHTML = `<div class="status error">Gagal: ${json.detail || 'Terjadi kesalahan'}</div>`;
+                    }
+                } catch (err) {
+                    console.error('Attendance submission error:', err);
+                    statusDiv.innerHTML = '<div class="status error">Error: Tidak dapat terhubung ke server</div>';
+                }
+            }, 'image/jpeg', 0.8);
+        } catch (err) {
+            console.error('Capture error:', err);
+            statusDiv.innerHTML = '<div class="status error">Error: Gagal mengambil foto</div>';
+        }
+    }
+
+    // Event listeners
+    btnViewSchedules.addEventListener('click', showScheduleSection);
+    btnAttend.addEventListener('click', showAttendanceSection);
+    
+    btnMasuk.addEventListener('click', () => checkRequirements('masuk'));
+    btnPulang.addEventListener('click', () => checkRequirements('pulang'));
+    
+    btnBackFromAttendance.addEventListener('click', hideAllSections);
+    btnBackToTypeSelection.addEventListener('click', showAttendanceTypeSelection);
+    btnCancelFaceVerification.addEventListener('click', showAttendanceTypeSelection);
+    btnBackToMainFromSuccess.addEventListener('click', hideAllSections);
+
+    // Logout
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        window.location.href = '/login';
+    });
+
+    // Clicking "Ajukan Tukar" on a schedule fills the my-schedule-id
+    schedulesList.addEventListener('click', (e) => {
+        const btn = e.target.closest('.apply-swap-btn');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        document.getElementById('my-schedule-id').value = id;
+        document.getElementById('my-schedule-id').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Swap form submit
+    swapForm.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        swapStatus.textContent = 'Mengirim permintaan...';
+        swapStatus.className = 'status processing';
+        
+        const body = {
+            requested_id: parseInt(document.getElementById('peer-id').value),
+            requester_schedule_id: parseInt(document.getElementById('my-schedule-id').value),
+            requested_schedule_id: parseInt(document.getElementById('peer-schedule-id').value)
+        };
+        
+        try {
+            const res = await authFetch('/swap-requests/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            if (res.ok) {
+                swapStatus.textContent = 'Permintaan tukar jadwal berhasil diajukan.';
+                swapStatus.className = 'status success';
+                swapForm.reset();
+                await loadSchedules();
+            } else {
+                const e = await res.json();
+                swapStatus.textContent = `Gagal: ${e.detail || 'Terjadi kesalahan.'}`;
+                swapStatus.className = 'status error';
+            }
+        } catch (err) {
+            swapStatus.textContent = 'Gagal menghubungi server.';
+            swapStatus.className = 'status error';
+            console.error('Error submitting swap request:', err);
+        }
+    });
+
+    // Initialize - show schedules view by default  
+    showScheduleSection();
+
+})();
+</script>
+</body>
+</html>
